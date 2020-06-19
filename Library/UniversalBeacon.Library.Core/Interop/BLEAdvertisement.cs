@@ -24,6 +24,18 @@ namespace UniversalBeacon.Library.Core.Interop
 {    
     public sealed class BeaconRegion
     {
+        public BeaconRegion()
+        {
+
+        }
+
+        public BeaconRegion(BeaconRegion beaconRegion)
+        {
+            Uuid = beaconRegion.Uuid;
+            RegionName = beaconRegion.RegionName;
+            MajorVersion = beaconRegion.MajorVersion;
+            MinorVersion = beaconRegion.MinorVersion;
+        }
         public string Uuid { get; set; }
         public string RegionName { get; set; }
         public ushort MajorVersion { get; set; }

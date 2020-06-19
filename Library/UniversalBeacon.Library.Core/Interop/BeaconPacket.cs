@@ -23,6 +23,17 @@ namespace UniversalBeacon.Library.Core.Interop
 {    
     public class BeaconPacket
     {
+        public BeaconPacket()
+        {
+
+        }
+        public BeaconPacket(BeaconRegion beaconRegion, ulong bluetoothAddress = 0, DateTimeOffset timestamp = default(DateTimeOffset), short signalStrength = 0)
+        {
+            Region = beaconRegion;
+            BluetoothAddress = bluetoothAddress;
+            RawSignalStrengthInDBm = signalStrength;
+            Timestamp = timestamp;
+        }
         public BeaconRegion Region { get; set; }
 
         public ulong BluetoothAddress { get; set; }
