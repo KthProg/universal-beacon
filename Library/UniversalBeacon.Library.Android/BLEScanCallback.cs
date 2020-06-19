@@ -5,6 +5,7 @@ using Android.Bluetooth;
 using Android.Bluetooth.LE;
 using Android.Runtime;
 using UniversalBeacon.Library.Core.Interop;
+using UniversalBeacon.Library.Core.Parsing;
 
 namespace UniversalBeacon.Library
 {
@@ -44,7 +45,8 @@ namespace UniversalBeacon.Library
                         Debug.WriteLine($"{LogTag} BLE advertisement power {result.TxPower}");
 
                         // TODO: parse manufacturer data to get beaconing UUID, etc
-                        // var manufacturerData = result.ScanRecord.ManufacturerSpecificData;
+                        // var beacon = BeaconRawDataParser.ParseRawData(result.ScanRecord.GetBytes());
+                        // BeaconRawDataParser.AddBeaconPacketData(beacon, p);
 
                         OnAdvertisementPacketReceived?.Invoke(this, new BeaconPacketArgs(p));
                     }

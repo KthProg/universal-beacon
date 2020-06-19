@@ -9,6 +9,6 @@
     <Import_RootNamespace>UniversalBeacon.Library</Import_RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="$(MSBuildThisFileDirectory)CocoaBluetoothPacketProvider.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)CocoaBeaconProvider.cs" />
   </ItemGroup>
 </Project>

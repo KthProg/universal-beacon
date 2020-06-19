@@ -38,37 +38,32 @@ namespace UniversalBeacon.Library.Core.Entities
     public class BeaconManager
     {
         /// <summary>
-        /// Event that is invoked whenever a new (unknown) beacon is discovered and added to the list
-        /// of known beacons (BluetoothBeacons).
-        /// To subscribe to updates of every single received Bluetooth advertisment packet, 
-        /// subscribe to the OnAdvertisementPacketReceived event of the IBluetoothPacketProvider.
+        /// Event that is invoked whenever a beacon region is entered.
+        /// To subscribe to updates of every single received beacon, 
+        /// subscribe to the <see cref="BeaconReceived"/> event of the IBluetoothPacketProvider.
         /// </summary>
         public event EventHandler<Beacon> BeaconEntered;
 
         /// <summary>
-        /// Event that is invoked whenever a new (unknown) beacon is discovered and added to the list
-        /// of known beacons (BluetoothBeacons).
+        /// Event that is invoked whenever a beacon region is exited.
         /// To subscribe to updates of every single received Bluetooth advertisment packet, 
-        /// subscribe to the OnAdvertisementPacketReceived event of the IBluetoothPacketProvider.
+        /// subscribe to the <see cref="BeaconReceived"/> event of the IBluetoothPacketProvider.
         /// </summary>
         public event EventHandler<Beacon> BeaconExited;
 
         /// <summary>
-        /// Event that is invoked whenever a new (unknown) beacon is discovered and added to the list
-        /// of known beacons (BluetoothBeacons).
-        /// To subscribe to updates of every single received Bluetooth advertisment packet, 
-        /// subscribe to the OnAdvertisementPacketReceived event of the IBluetoothPacketProvider.
+        /// Event that is invoked whenever a beacon is received.
         /// </summary>
         public event EventHandler<Beacon> BeaconReceived;
 
 
         /// <summary>
-        /// Provider that emits events whenever new Bluetooth advertisement packets have been received.
+        /// Provider that emits events whenever new beacons have been received.
         /// </summary>
-        private readonly IBluetoothPacketProvider _provider;
+        private readonly IBeaconProvider _provider;
 
         /// <summary>
-        /// Optional action that is used to handle the received Bluetooth event, e.g., to handle it in a different
+        /// Optional action that is used to handle the received beacon event, e.g., to handle it in a different
         /// thread. Can be used to handle the added beacons on the UI thread, if these are received in a background thread.
         /// </summary>
         private readonly Action<Action> _invokeAction;
@@ -81,7 +76,7 @@ namespace UniversalBeacon.Library.Core.Entities
         /// have been received.</param>
         /// <param name="invokeAction">Optional invoke action, e.g., to run the code to handle the received
         /// event in a different thread.</param>
-        public BeaconManager(IBluetoothPacketProvider provider, Action<Action> invokeAction = null)
+        public BeaconManager(IBeaconProvider provider, Action<Action> invokeAction = null)
         {
             _provider = provider;
             _provider.BeaconRegionEntered += OnBeaconRegionEntered;
@@ -91,7 +86,7 @@ namespace UniversalBeacon.Library.Core.Entities
         }
 
         /// <summary>
-        /// Relay the start event to the Blueooth packet provider.
+        /// Relay the start event to the beacon provider.
         /// </summary>
         public void Start()
         {
@@ -99,7 +94,7 @@ namespace UniversalBeacon.Library.Core.Entities
         }
 
         /// <summary>
-        /// Relay the stop event to the Blueooth packet provider.
+        /// Relay the stop event to the beacon provider.
         /// </summary>
         public void Stop()
         {

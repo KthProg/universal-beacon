@@ -44,9 +44,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="PacketExtensions.cs" />
-    <Compile Include="RecordParser.cs" />
     <Compile Include="BLEScanCallback.cs" />
-    <Compile Include="AndroidBluetoothPacketProvider.cs" />
+    <Compile Include="AndroidBeaconProvider.cs" />
     <Compile Include="Resources\Resource.Designer.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

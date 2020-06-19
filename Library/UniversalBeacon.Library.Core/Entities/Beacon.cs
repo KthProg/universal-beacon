@@ -34,12 +34,12 @@ namespace UniversalBeacon.Library.Core.Entities
     /// Windows Bluetooth API. When further advertisements are received for this beacon,
     /// call its UpdateBeacon() method to update the frames.
     /// </summary>
-    public class Beacon : INotifyPropertyChanged
+    public class Beacon
     {
         /// <summary>
         /// Bluetooth Service UUID for Eddystone beacons.
         /// </summary>
-        private readonly Guid _eddystoneGuid = new Guid("0000FEAA-0000-1000-8000-00805F9B34FB");
+        public readonly Guid EddystoneGuid = new Guid("0000FEAA-0000-1000-8000-00805F9B34FB");
 
         public enum BeaconTypeEnum
         {
@@ -55,7 +55,6 @@ namespace UniversalBeacon.Library.Core.Entities
             /// <summary>
             /// Beacon conforming to the Apple iBeacon specification.
             /// iBeacon is a Trademark of Apple Inc.
-            /// Note: the beacon broadcast payload is not parsed by this library.
             /// </summary>
             iBeacon
         }
@@ -67,90 +66,37 @@ namespace UniversalBeacon.Library.Core.Entities
         /// </summary>
         public BeaconTypeEnum BeaconType { get; set; } = BeaconTypeEnum.Unknown;
 
-        /// <summary>
-        /// List of all the different frames that have been observed for this beacon so far.
-        /// If a new frame with the same type is collected, it replaces the previous frame.
-        /// </summary>
-        public ObservableCollection<BeaconFrameBase> BeaconFrames { get; set; } = new ObservableCollection<BeaconFrameBase>();
 
-        private short _rssi;
         /// <summary>
         /// Raw signal strength in dBM.
         /// If a new advertisement is received for the same beacon (with the same
         /// Bluetooth MAC address), always the latest signal strength is recorded.
         /// </summary>
-        public short Rssi
-        {
-            get => _rssi;
-            set
-            {
-                if (_rssi == value) return;
-                _rssi = value;
-                OnPropertyChanged();
-            }
-        }
+        public short Rssi { get; set; }
 
-
-        private BeaconRegion _region;
         /// <summary>
         /// Raw signal strength in dBM.
         /// If a new advertisement is received for the same beacon (with the same
         /// Bluetooth MAC address), always the latest signal strength is recorded.
         /// </summary>
-        public BeaconRegion Region
-        {
-            get => _region;
-            set
-            {
-                if (_region == value) return;
-                _region = value;
-                OnPropertyChanged();
-            }
-        }
+        public BeaconRegion Region { get; set; }
 
-        private ulong _bluetoothAddress;
         /// <summary>
         /// The Bluetooth MAC address.
         /// Used to cluster the different received Bluetooth advertisements and to
         /// collect multiple advertisements for unique beacons.
         /// </summary>
-        public ulong BluetoothAddress
-        {
-            get => _bluetoothAddress;
-            set
-            {
-                if (_bluetoothAddress == value) return;
-                _bluetoothAddress = value;
-                OnPropertyChanged();
-                OnPropertyChanged(nameof(BluetoothAddressAsString));
-            }
-        }
+        public ulong BluetoothAddress { get; set; }
 
         /// <summary>
         /// Retrieves the Bluetooth MAC address formatted as a hex string.
         /// </summary>
-        public string BluetoothAddressAsString
-        {
-            get
-            {
-                return string.Join(":", BitConverter.GetBytes(BluetoothAddress).Reverse().Select(b => b.ToString("X2"))).Substring(6);
-            }
-        }
+        public string BluetoothAddressAsString => string.Join(":", BitConverter.GetBytes(BluetoothAddress).Reverse().Select(b => b.ToString("X2"))).Substring(6);
 
-        private DateTimeOffset _timestamp;
         /// <summary>
         /// Timestamp when the last advertisement was received for this beacon.
         /// </summary>
-        public DateTimeOffset Timestamp
-        {
-            get => _timestamp;
-            set
-            {
-                if (_timestamp == value) return;
-                _timestamp = value;
-                OnPropertyChanged();
-            }
-        }
+        public DateTimeOffset Timestamp { get; set; }
 
         /// <summary>
         /// Construct a new Bluetooth beacon based on the received advertisement.
@@ -173,13 +119,6 @@ namespace UniversalBeacon.Library.Core.Entities
         public Beacon(BeaconTypeEnum beaconType)
         {
             BeaconType = beaconType;
-        }
-
-        public event PropertyChangedEventHandler PropertyChanged;
-
-        protected virtual void OnPropertyChanged([CallerMemberName] string propertyName = null)
-        {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
     }
 }
