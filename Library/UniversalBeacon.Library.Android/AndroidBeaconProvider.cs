@@ -1,11 +1,16 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Threading;
+using System.Threading.Tasks;
 using Android.Bluetooth;
 using Android.Bluetooth.LE;
 using Android.Content;
+using Android.OS;
+using Java.Sql;
 using UniversalBeacon.Library.Core.Interfaces;
 using UniversalBeacon.Library.Core.Interop;
+using SystemDebug = System.Diagnostics.Debug;
 
 namespace UniversalBeacon.Library
 {
@@ -19,54 +24,143 @@ namespace UniversalBeacon.Library
         public event EventHandler<BeaconPacketArgs> BeaconReceived;
 
         private readonly BluetoothAdapter _adapter;
-        private readonly BLEScanCallback _scanCallback;
-        private readonly ScanFilter _scanFilter;
+        private readonly BeaconRegion _beaconRegion;
 
-        public AndroidBeaconProvider(Context context, ScanFilter scanFilter = null)
+        private CancellationTokenSource _cancellationTokenSource;
+        private CancellationToken _cancellationToken;
+
+        private CancellationTokenSource _regionExitedCancellationTokenSource;
+        private CancellationToken _regionExitedCancellationToken;
+
+        private object _lock = new object();
+        private const int BeaconExitedTimeoutMs = 30000;
+        private DateTime _lastBeaconReceivedDateTime;
+        private Task _regionExitedWatchdogTask;
+        private Task _scanTask;
+        private bool _wasRegionExitTriggered = false;
+
+        private const int ScanDelayMs = 5000;
+        private const int ScanDurationMs = 5000;
+
+        public AndroidBeaconProvider(Context context, BeaconRegion beaconRegion)
         {
-            Debug.WriteLine(LogTag);
+            SystemDebug.WriteLine(LogTag, LogTag);
 
             var manager = (BluetoothManager)context.GetSystemService("bluetooth");
+            _beaconRegion = beaconRegion;
             _adapter = manager.Adapter;
-            _scanCallback = new BLEScanCallback();
-            _scanFilter = scanFilter;
         }
 
         private void ScanCallback_OnAdvertisementPacketReceived(object sender, BeaconPacketArgs e)
         {
-            BeaconReceived?.Invoke(this, e);
+            SystemDebug.WriteLine($"Beacon received: {e.Data.BluetoothAddress:X} {e.Data.Region.Uuid}", LogTag);
+
+            if (e.Data.Region.Uuid.Replace("-", String.Empty).ToLower() != _beaconRegion.Uuid.Replace("-", String.Empty).ToLower())
+            {
+                return;
+            }
+
+            lock (_lock)
+            {
+                try
+                {
+                    _regionExitedCancellationTokenSource.Cancel();
+                    _regionExitedCancellationTokenSource.Dispose();
+                }
+                catch (Exception) { }
+
+                _regionExitedCancellationTokenSource = new CancellationTokenSource();
+                _regionExitedCancellationToken = _regionExitedCancellationTokenSource.Token;
+
+                _regionExitedWatchdogTask = Task.Run(WaitDelayAndCheckForRegionExited(_regionExitedCancellationToken), _cancellationToken);
+
+                // start monitoring for region exit again (we have reentered the region)
+                if (_wasRegionExitTriggered)
+                {
+                    BeaconRegionEntered?.Invoke(this, new BeaconPacketArgs(e.Data));
+                }
+
+                BeaconReceived?.Invoke(this, new BeaconPacketArgs(e.Data));
+
+                _lastBeaconReceivedDateTime = DateTime.Now;
+
+                _wasRegionExitTriggered = false;
+            }
+        }
+
+        public Func<Task> WaitDelayAndCheckForRegionExited(CancellationToken regionExitedCancellationToken)
+        {
+            return async () =>
+            {
+                // if > 30 seconds since last beacon, send beacon exited
+                await Task.Delay(BeaconExitedTimeoutMs, _cancellationToken);
+                lock (_lock)
+                {
+                    if (!regionExitedCancellationToken.IsCancellationRequested)
+                    {
+                        _wasRegionExitTriggered = true;
+                        SystemDebug.WriteLine("Region exited", LogTag);
+                        BeaconRegionExited?.Invoke(this, new BeaconPacketArgs(new BeaconPacket(_beaconRegion)));
+                    }
+                }
+            };
         }
 
         public void Start()
         {
-            Debug.WriteLine($"{LogTag}:{nameof(Start)}()");
+            SystemDebug.WriteLine($"{nameof(Start)}()", LogTag);
 
-            if (_adapter.BluetoothLeScanner is null)
+            if (_adapter is null || _adapter.BluetoothLeScanner is null)
             {
-                Debug.WriteLine($"{LogTag} adapter is null, please turn bluetooth on");
+                SystemDebug.WriteLine("adapter is null, please turn bluetooth on", LogTag);
                 return;
             }
 
-            _scanCallback.OnAdvertisementPacketReceived += ScanCallback_OnAdvertisementPacketReceived;
-
             var scanSettings = new ScanSettings.Builder().SetScanMode(Android.Bluetooth.LE.ScanMode.LowPower).Build();
 
-            if (_scanFilter != null)
+            SystemDebug.WriteLine("starting scan", LogTag);
+
+            _cancellationTokenSource = new CancellationTokenSource();
+            _cancellationToken = _cancellationTokenSource.Token;
+
+            _scanTask = Task.Run(async () =>
             {
-                Debug.WriteLine($"{LogTag} starting filtered scan");
-                _adapter.BluetoothLeScanner.StartScan(new List<ScanFilter> { _scanFilter }, scanSettings, _scanCallback);
-            }
-            else
-            {
-                Debug.WriteLine($"{LogTag} starting unfiltered scan");
-                _adapter.BluetoothLeScanner.StartScan(_scanCallback);
-            }
+                while (!_cancellationToken.IsCancellationRequested)
+                {
+                    var scanCallback = new BLEScanCallback();
+                    scanCallback.OnAdvertisementPacketReceived += ScanCallback_OnAdvertisementPacketReceived;
+                    _adapter.BluetoothLeScanner.StartScan(null, scanSettings, scanCallback);
+                    await Task.Delay(ScanDurationMs);
+                    _adapter.BluetoothLeScanner.StopScan(scanCallback);
+                    await Task.Delay(ScanDelayMs);
+                }
+            }, _cancellationToken);
         }
 
         public void Stop()
         {
-            _scanCallback.OnAdvertisementPacketReceived -= ScanCallback_OnAdvertisementPacketReceived;
             _adapter.CancelDiscovery();
+
+            try
+            {
+                _cancellationTokenSource.Cancel();
+                _cancellationTokenSource.Dispose();
+            }
+            catch (Exception)
+            {
+                SystemDebug.WriteLine("failed to cancel beacon scanning", LogTag);
+            }
+
+            try
+            {
+                _regionExitedCancellationTokenSource.Cancel();
+                _regionExitedCancellationTokenSource.Dispose();
+            }
+            catch (Exception) {
+                SystemDebug.WriteLine("failed to cancel beacon exit task", LogTag);
+            }
+
+            WatcherStopped?.Invoke(sender: this, e: new BeaconError(BeaconError.BeaconErrorType.Success));
         }
     }
 }
