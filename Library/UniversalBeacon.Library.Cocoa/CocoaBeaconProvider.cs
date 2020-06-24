@@ -23,6 +23,7 @@ namespace UniversalBeacon.Library
 
         private class UniversalBeaconLocationManagerDelegate : CLLocationManagerDelegate
         {
+            private string LogTag => _bluetoothPacketProvider.LogTag;
             private readonly CocoaBeaconProvider _bluetoothPacketProvider;
             public UniversalBeaconLocationManagerDelegate(CocoaBeaconProvider bluetoothPacketProvider) : base()
             {
@@ -32,57 +33,57 @@ namespace UniversalBeacon.Library
 
             public override void DidVisit(CLLocationManager manager, CLVisit visit)
             {
-                Debug.WriteLine($"{_bluetoothPacketProvider.LogTag} visited {visit.Coordinate.ToString()}");
+                Debug.WriteLine($"visited {visit.Coordinate.ToString()}", LogTag);
             }
 
             public override void DeferredUpdatesFinished(CLLocationManager manager, NSError error)
             {
-                Debug.WriteLine($"{_bluetoothPacketProvider.LogTag} deferred updates {error.DebugDescription}");
+                Debug.WriteLine($"deferred updates {error.DebugDescription}", LogTag);
             }
 
             public override void DidRangeBeaconsSatisfyingConstraint(CLLocationManager manager, CLBeacon[] beacons, CLBeaconIdentityConstraint beaconConstraint)
             {
-                Debug.WriteLine($"{_bluetoothPacketProvider.LogTag} ranged beacons by constraint");
+                Debug.WriteLine("ranged beacons by constraint", LogTag);
             }
 
             public override void Failed(CLLocationManager manager, NSError error)
             {
-                Debug.WriteLine($"{_bluetoothPacketProvider.LogTag} something went wrong {error.DebugDescription}");
+                Debug.WriteLine($"something went wrong {error.DebugDescription}", LogTag);
             }
 
             public override void LocationsUpdated(CLLocationManager manager, CLLocation[] locations)
             {
-                Debug.WriteLine($"{_bluetoothPacketProvider.LogTag} locations updated");
+                Debug.WriteLine("locations updated", LogTag);
             }
 
             public override void UpdatedLocation(CLLocationManager manager, CLLocation newLocation, CLLocation oldLocation)
             {
-                Debug.WriteLine($"{_bluetoothPacketProvider.LogTag} location updated");
+                Debug.WriteLine("location updated", LogTag);
             }
 
             public override void DidStartMonitoringForRegion(CLLocationManager manager, CLRegion region)
             {
-                Debug.WriteLine($"{_bluetoothPacketProvider.LogTag} monitoring region {region.Identifier}");
+                Debug.WriteLine($"monitoring region {region.Identifier}", LogTag);
             }
 
             public override void MonitoringFailed(CLLocationManager manager, CLRegion region, NSError error)
             {
-                Debug.WriteLine($"{_bluetoothPacketProvider.LogTag} failed monitoring region {region.Identifier}");
+                Debug.WriteLine($"failed monitoring region {region.Identifier}", LogTag);
             }
 
             public override void DidFailRangingBeacons(CLLocationManager manager, CLBeaconIdentityConstraint beaconConstraint, NSError error)
             {
-                Debug.WriteLine($"{_bluetoothPacketProvider.LogTag} failed ranging beacons");
+                Debug.WriteLine("failed ranging beacons", LogTag);
             }
 
             public override void RangingBeaconsDidFailForRegion(CLLocationManager manager, CLBeaconRegion region, NSError error)
             {
-                Debug.WriteLine($"{_bluetoothPacketProvider.LogTag} failed ranging beacons for region {region.Identifier}");
+                Debug.WriteLine($"failed ranging beacons for region {region.Identifier}", LogTag);
             }
 
             public override void DidDetermineState(CLLocationManager manager, CLRegionState state, CLRegion region)
             {
-                Debug.WriteLine($"{_bluetoothPacketProvider.LogTag} region state determined for {region.Identifier} {state}");
+                Debug.WriteLine($"region state determined for {region.Identifier} {state}", LogTag);
 
                 if (state != CLRegionState.Inside || region.Identifier != _bluetoothPacketProvider._clBeaconRegion.Identifier) { return; }
 
@@ -92,13 +93,13 @@ namespace UniversalBeacon.Library
                 }
                 else
                 {
-                    Debug.WriteLine($"{_bluetoothPacketProvider.LogTag} Ranging not available");
+                    Debug.WriteLine("Ranging not available", LogTag);
                 }
             }
 
             public override void RegionEntered(CLLocationManager manager, CLRegion region)
             {
-                Debug.WriteLine($"{_bluetoothPacketProvider.LogTag} Region entered {region.Identifier}");
+                Debug.WriteLine($"Region entered {region.Identifier}", LogTag);
 
                 _bluetoothPacketProvider.BeaconRegionEntered?.Invoke(_bluetoothPacketProvider, new BeaconPacketArgs(new BeaconPacket(new BeaconRegion(region.Identifier))));
 
@@ -108,13 +109,13 @@ namespace UniversalBeacon.Library
                 }
                 else
                 {
-                    Debug.WriteLine($"{_bluetoothPacketProvider.LogTag} Ranging not available");
+                    Debug.WriteLine("Ranging not available", LogTag);
                 }
             }
 
             public override void RegionLeft(CLLocationManager manager, CLRegion region)
             {
-                Debug.WriteLine($"{_bluetoothPacketProvider.LogTag} Region left {region.Identifier}");
+                Debug.WriteLine($"Region left {region.Identifier}", LogTag);
 
                 _bluetoothPacketProvider.BeaconRegionExited?.Invoke(_bluetoothPacketProvider, new BeaconPacketArgs(new BeaconPacket(new BeaconRegion(region.Identifier))));
 
@@ -124,13 +125,13 @@ namespace UniversalBeacon.Library
                 }
                 else
                 {
-                    Debug.WriteLine($"{_bluetoothPacketProvider.LogTag} Ranging not available");
+                    Debug.WriteLine("Ranging not available", LogTag);
                 }
             }
 
             public override void DidRangeBeacons(CLLocationManager manager, CLBeacon[] beacons, CLBeaconRegion region)
             {
-                Debug.WriteLine($"{_bluetoothPacketProvider.LogTag} Beacons ranged");
+                Debug.WriteLine("Beacons ranged", LogTag);
 
                 _bluetoothPacketProvider.BeaconReceived?.Invoke(_bluetoothPacketProvider, new BeaconPacketArgs(new BeaconPacket(new BeaconRegion(region.Identifier))));
             }
@@ -138,11 +139,11 @@ namespace UniversalBeacon.Library
 
         public CocoaBeaconProvider(CLBeaconRegion beaconRegion)
         {
-            Debug.WriteLine(LogTag);
+            Debug.WriteLine("constructor()", LogTag);
 
             if (!CLLocationManager.LocationServicesEnabled)
             {
-                Debug.WriteLine($"{LogTag} Location services disabled, my bad.");
+                Debug.WriteLine("Location services disabled, my bad.", LogTag);
                 return;
             }
 
@@ -156,10 +157,10 @@ namespace UniversalBeacon.Library
 
         public void Start()
         {
-            Debug.WriteLine($"{LogTag}:{nameof(Start)}()");
+            Debug.WriteLine($"{nameof(Start)}()", LogTag);
 
             if (!CLLocationManager.IsMonitoringAvailable(typeof(CLBeaconRegion))){
-                Debug.WriteLine($"{LogTag} Cannot monitor beacon regions, my bad.");
+                Debug.WriteLine("Cannot monitor beacon regions, my bad.", LogTag);
                 return;
             }
 
@@ -168,7 +169,7 @@ namespace UniversalBeacon.Library
 
         public void Stop()
         {
-            Debug.WriteLine($"{LogTag}:{nameof(Stop)}()");
+            Debug.WriteLine($"{nameof(Stop)}()", LogTag);
 
 
             if (CLLocationManager.IsMonitoringAvailable(typeof(CLBeaconRegion)))
@@ -177,7 +178,7 @@ namespace UniversalBeacon.Library
             }
             else
             {
-                Debug.WriteLine($"{LogTag} Beacon monitor stop failed, monitoring not available.");
+                Debug.WriteLine("Beacon monitor stop failed, monitoring not available.", LogTag);
             }
 
 
@@ -189,7 +190,7 @@ namespace UniversalBeacon.Library
                 }
                 catch (Exception)
                 {
-                    Debug.WriteLine($"{LogTag} Beacon ranging stop failed. Probably already stopped ranging");
+                    Debug.WriteLine("Beacon ranging stop failed. Probably already stopped ranging", LogTag);
                 }
             }
 
