@@ -51,7 +51,13 @@ namespace UniversalBeacon.Library
 
             public override void DidDetermineState(CLLocationManager manager, CLRegionState state, CLRegion region)
             {
-                Debug.WriteLine($"region state determined for {region.Identifier} {state}", LogTag);
+                Debug.WriteLine($"region state determined for {region.Identifier}: {state}", LogTag);
+
+                // trigger region enter if we are already inside the beacon region
+                if(state == CLRegionState.Inside)
+                {
+                    _bluetoothPacketProvider.BeaconRegionEntered?.Invoke(_bluetoothPacketProvider, new BeaconPacketArgs(new BeaconPacket(new BeaconRegion(region.Identifier))));
+                }
             }
 
             public override void RegionEntered(CLLocationManager manager, CLRegion region)

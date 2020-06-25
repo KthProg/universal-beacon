@@ -38,6 +38,7 @@ namespace UniversalBeacon.Library
         private Task _regionExitedWatchdogTask;
         private Task _scanTask;
         private bool _wasRegionExitTriggered = false;
+        private bool _wasFirstRegionEnterTriggered = false;
 
         private const int ScanDelayMs = 5000;
         private const int ScanDurationMs = 5000;
@@ -60,6 +61,9 @@ namespace UniversalBeacon.Library
                 return;
             }
 
+            // matched UUID, this is the region we are looking for, set name
+            e.Data.Region.RegionName = _beaconRegion.RegionName;
+
             lock (_lock)
             {
                 try
@@ -72,11 +76,14 @@ namespace UniversalBeacon.Library
                 _regionExitedCancellationTokenSource = new CancellationTokenSource();
                 _regionExitedCancellationToken = _regionExitedCancellationTokenSource.Token;
 
+                // start task to kick off region exit if no beacon is received for a period of time
                 _regionExitedWatchdogTask = Task.Run(WaitDelayAndCheckForRegionExited(_regionExitedCancellationToken), _cancellationToken);
 
-                // start monitoring for region exit again (we have reentered the region)
-                if (_wasRegionExitTriggered)
+                // send region entered if region was exited and new beacon received,
+                // or if this is the first beacon we received
+                if (_wasRegionExitTriggered || !_wasFirstRegionEnterTriggered)
                 {
+                    _wasFirstRegionEnterTriggered = true;
                     BeaconRegionEntered?.Invoke(this, new BeaconPacketArgs(e.Data));
                 }
 
