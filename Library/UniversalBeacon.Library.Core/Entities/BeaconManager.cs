@@ -68,6 +68,11 @@ namespace UniversalBeacon.Library.Core.Entities
         /// </summary>
         private readonly Action<Action> _invokeAction;
 
+        private bool _isStarted = false;
+        private readonly object _lock = new object();
+
+        private readonly string LogTag = nameof(BeaconManager);
+
         /// <summary>
         /// Create new Beacon Manager based on the provider that is going to update the manager with
         /// new received Bluetooth Packets.
@@ -90,7 +95,17 @@ namespace UniversalBeacon.Library.Core.Entities
         /// </summary>
         public void Start()
         {
-            _provider.Start();
+            if (!_isStarted)
+            {
+                Debug.WriteLine("Attempted to start beacon manager instance twice, skipping start action.", LogTag);
+                return;
+            }
+
+            lock (_lock)
+            {
+                _isStarted = true;
+                _provider.Start();
+            }
         }
 
         /// <summary>
@@ -98,7 +113,17 @@ namespace UniversalBeacon.Library.Core.Entities
         /// </summary>
         public void Stop()
         {
-            _provider.Stop();
+            if (!_isStarted)
+            {
+                Debug.WriteLine("Attempted to stop beacon manager instance twice, skipping stop action.", LogTag);
+                return;
+            }
+
+            lock (_lock)
+            {
+                _isStarted = false;
+                _provider.Stop();
+            }
         }
 
         private void OnBeaconRegionEntered(object sender, BeaconPacketArgs e)
