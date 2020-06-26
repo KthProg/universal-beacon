@@ -34,12 +34,12 @@ namespace UniversalBeacon.Library.Core.Entities
     /// Windows Bluetooth API. When further advertisements are received for this beacon,
     /// call its UpdateBeacon() method to update the frames.
     /// </summary>
-    public class Beacon : INotifyPropertyChanged
+    public class Beacon
     {
         /// <summary>
         /// Bluetooth Service UUID for Eddystone beacons.
         /// </summary>
-        private readonly Guid _eddystoneGuid = new Guid("0000FEAA-0000-1000-8000-00805F9B34FB");
+        public readonly Guid EddystoneGuid = new Guid("0000FEAA-0000-1000-8000-00805F9B34FB");
 
         public enum BeaconTypeEnum
         {
@@ -55,7 +55,6 @@ namespace UniversalBeacon.Library.Core.Entities
             /// <summary>
             /// Beacon conforming to the Apple iBeacon specification.
             /// iBeacon is a Trademark of Apple Inc.
-            /// Note: the beacon broadcast payload is not parsed by this library.
             /// </summary>
             iBeacon
         }
@@ -67,72 +66,37 @@ namespace UniversalBeacon.Library.Core.Entities
         /// </summary>
         public BeaconTypeEnum BeaconType { get; set; } = BeaconTypeEnum.Unknown;
 
-        /// <summary>
-        /// List of all the different frames that have been observed for this beacon so far.
-        /// If a new frame with the same type is collected, it replaces the previous frame.
-        /// </summary>
-        public ObservableCollection<BeaconFrameBase> BeaconFrames { get; set; } = new ObservableCollection<BeaconFrameBase>();
 
-        private short _rssi;
         /// <summary>
         /// Raw signal strength in dBM.
         /// If a new advertisement is received for the same beacon (with the same
         /// Bluetooth MAC address), always the latest signal strength is recorded.
         /// </summary>
-        public short Rssi
-        {
-            get => _rssi;
-            set
-            {
-                if (_rssi == value) return;
-                _rssi = value;
-                OnPropertyChanged();
-            }
-        }
+        public short Rssi { get; set; }
 
-        private ulong _bluetoothAddress;
+        /// <summary>
+        /// Raw signal strength in dBM.
+        /// If a new advertisement is received for the same beacon (with the same
+        /// Bluetooth MAC address), always the latest signal strength is recorded.
+        /// </summary>
+        public BeaconRegion Region { get; set; }
+
         /// <summary>
         /// The Bluetooth MAC address.
         /// Used to cluster the different received Bluetooth advertisements and to
         /// collect multiple advertisements for unique beacons.
         /// </summary>
-        public ulong BluetoothAddress
-        {
-            get => _bluetoothAddress;
-            set
-            {
-                if (_bluetoothAddress == value) return;
-                _bluetoothAddress = value;
-                OnPropertyChanged();
-                OnPropertyChanged(nameof(BluetoothAddressAsString));
-            }
-        }
+        public ulong BluetoothAddress { get; set; }
 
         /// <summary>
         /// Retrieves the Bluetooth MAC address formatted as a hex string.
         /// </summary>
-        public string BluetoothAddressAsString
-        {
-            get
-            {
-                return string.Join(":", BitConverter.GetBytes(BluetoothAddress).Reverse().Select(b => b.ToString("X2"))).Substring(6);
-            }
-        }
+        public string BluetoothAddressAsString => string.Join(":", BitConverter.GetBytes(BluetoothAddress).Reverse().Select(b => b.ToString("X2"))).Substring(6);
 
-        private DateTimeOffset _timestamp;
         /// <summary>
         /// Timestamp when the last advertisement was received for this beacon.
         /// </summary>
-        public DateTimeOffset Timestamp
-        {
-            get => _timestamp;
-            set
-            {
-                if (_timestamp == value) return;
-                _timestamp = value;
-                OnPropertyChanged();
-            }
-        }
+        public DateTimeOffset Timestamp { get; set; }
 
         /// <summary>
         /// Construct a new Bluetooth beacon based on the received advertisement.
@@ -140,10 +104,12 @@ namespace UniversalBeacon.Library.Core.Entities
         /// </summary>
         /// <param name="btAdv">Bluetooth advertisement to parse, as received from
         /// the Windows Bluetooth LE API.</param>
-        public Beacon(BLEAdvertisementPacket btAdv)
+        public Beacon(BeaconPacket btAdv)
         {
             BluetoothAddress = btAdv.BluetoothAddress;
-            UpdateBeacon(btAdv);
+            Rssi = btAdv.RawSignalStrengthInDBm;
+            Timestamp = btAdv.Timestamp;
+            Region = btAdv.Region;
         }
 
         /// <summary>
@@ -153,169 +119,6 @@ namespace UniversalBeacon.Library.Core.Entities
         public Beacon(BeaconTypeEnum beaconType)
         {
             BeaconType = beaconType;
-        }
-
-        /// <summary>
-        /// Received a new advertisement for this beacon.
-        /// If the Bluetooth address of the new advertisement matches this beacon,
-        /// it will parse the contents of the advertisement and extract known frames.
-        /// </summary>
-        /// <param name="btAdv">Bluetooth advertisement to parse, as received from
-        /// the Windows Bluetooth LE API.</param>
-        public void UpdateBeacon(BLEAdvertisementPacket btAdv)
-        {
-            if (btAdv == null) return;
-
-            // Only update beacon info if it's the same beacon
-            if (btAdv.BluetoothAddress != BluetoothAddress)
-            {
-                throw new BeaconException("Bluetooth address of beacon does not match - not updating beacon information");
-            }
-
-            Rssi = btAdv.RawSignalStrengthInDBm;
-            Timestamp = btAdv.Timestamp;
-
-            //Debug.WriteLine($"Beacon advertisment detected (Strength: {Rssi}): Address: {BluetoothAddress}");
-
-            // Check if beacon advertisement contains any actual usable data
-            if (btAdv.Advertisement == null) return;
-
-            // Service UUID identifies Eddystone beacon - iBeacon is identified via manufacturer ID
-            if (btAdv.Advertisement.ServiceUuids.Any())
-            {
-                foreach (var serviceUuid in btAdv.Advertisement.ServiceUuids)
-                {
-                    // If we have multiple service UUIDs and already recognized a beacon type, 
-                    // don't overwrite it with another service Uuid.
-                    if (BeaconType == BeaconTypeEnum.Unknown)
-                    {
-                        BeaconType = serviceUuid.Equals(_eddystoneGuid)
-                            ? BeaconTypeEnum.Eddystone
-                            : BeaconTypeEnum.Unknown;
-                    }
-                }
-            }
-            else
-            {
-                //Debug.WriteLine("Bluetooth LE device does not send Service UUIDs");
-            }
-
-            // Data sections - used by Eddystone Beacon type
-            if (btAdv.Advertisement.DataSections.Any())
-            {
-                if (BeaconType == BeaconTypeEnum.Eddystone)
-                {
-                    // This beacon is according to the Eddystone specification - parse data
-                    ParseEddystoneData(btAdv);
-                }
-                else if (BeaconType == BeaconTypeEnum.Unknown)
-                {
-                    // Unknown beacon type
-                    //Debug.WriteLine("\nUnknown beacon");
-                    //foreach (var dataSection in btAdv.Advertisement.DataSections)
-                    //{
-                    //    Debug.WriteLine("Data section 0x: " + dataSection.DataType.ToString("X") + " = " + 
-                    //        BitConverter.ToString(dataSection.Data.ToArray()));
-                    //}
-                }
-            }
-
-            // Manufacturer data - used by Proximity Beacon type (iBeacon)
-            if (btAdv.Advertisement.ManufacturerData.Any())
-            {
-                foreach (var manufacturerData in btAdv.Advertisement.ManufacturerData)
-                {
-                    // Print the company ID + the raw data in hex format
-                    //var manufacturerDataString = $"0x{manufacturerData.CompanyId.ToString("X")}: {BitConverter.ToString(manufacturerData.Data.ToArray())}";
-                    //Debug.WriteLine("Manufacturer data: " + manufacturerDataString);
-
-                    var manufacturerDataArry = manufacturerData.Data.ToArray();
-                    if (BeaconFrameHelper.IsProximityBeaconPayload(manufacturerData.CompanyId, manufacturerDataArry))
-                    {
-                        BeaconType = BeaconTypeEnum.iBeacon;
-                        //Debug.WriteLine("iBeacon Frame: " + BitConverter.ToString(manufacturerDataArry));
-
-                        var beaconFrame = new ProximityBeaconFrame(manufacturerDataArry);
-
-                        // Only one relevant data frame for iBeacons
-                        if (BeaconFrames.Any())
-                        {
-                            BeaconFrames[0].Update(beaconFrame);
-                        }
-                        else
-                        {
-                            BeaconFrames.Add(beaconFrame);
-                        }
-                    }
-                }
-            }
-        }
-
-        private void ParseEddystoneData(BLEAdvertisementPacket btAdv)
-        {
-            // Parse Eddystone data
-            foreach (var dataSection in btAdv.Advertisement.DataSections)
-            {
-                //Debug.WriteLine("Beacon data: " + dataSection.DataType + " = " +
-                //                BitConverter.ToString(dataSection.Data.ToArray()));
-                //+ " (" + Encoding.UTF8.GetString(dataSection.Data.ToArray()) + ")\n");
-
-                // Relvant data of Eddystone is in data section 0x16
-                // Windows receives: 0x01 = 0x06
-                //                   0x03 = 0xAA 0xFE
-                //                   0x16 = 0xAA 0xFE [type] [data]
-                if ((dataSection.DataType == 0x16) || (dataSection.Manufacturer == (ushort)BTMember.GoogleEddystone))
-                {
-                    var beaconFrame = dataSection.Data.ToArray().CreateEddystoneBeaconFrame();
-                    if (beaconFrame == null) continue;
-
-                    var found = false;
-
-                    for (var i = 0; i < BeaconFrames.Count; i++)
-                    {
-                        if (BeaconFrames[i].GetType() == beaconFrame.GetType())
-                        {
-                            var updateFrame = false;
-                            if (beaconFrame.GetType() == typeof(UnknownBeaconFrame))
-                            {
-                                // Unknown frame - also compare eddystone type
-                                var existingEddystoneFrameType =
-                                    BeaconFrames[i].Payload.GetEddystoneFrameType();
-                                var newEddystoneFrameType = beaconFrame.Payload.GetEddystoneFrameType();
-                                if (existingEddystoneFrameType != null &&
-                                    existingEddystoneFrameType == newEddystoneFrameType)
-                                {
-                                    updateFrame = true;
-                                }
-                            }
-                            else
-                            {
-                                // Frame type of the new frame is equal to the stored one in BeaconFrames[i] - udpate it right away.
-                                updateFrame = true;
-                            }
-                            // If we know this frame already, update the existing info.
-                            if (updateFrame)
-                            {
-                                BeaconFrames[i].Update(beaconFrame);
-                                found = true;
-                                break;  // Don't analyze any other known frames of this beacon
-                            }
-                        }
-                    }
-                    if (!found)
-                    {
-                        // We didn't know this beacon frame so far - add it to the list of known frames.
-                        BeaconFrames.Add(beaconFrame);
-                    }
-                }
-            }
-        }
-
-        public event PropertyChangedEventHandler PropertyChanged;
-
-        protected virtual void OnPropertyChanged([CallerMemberName] string propertyName = null)
-        {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
     }
 }

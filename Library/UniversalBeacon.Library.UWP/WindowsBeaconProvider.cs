@@ -5,15 +5,18 @@ using UniversalBeacon.Library.Core.Interop;
 
 namespace UniversalBeacon.Library.UWP
 {
-    public class WindowsBluetoothPacketProvider : IBluetoothPacketProvider
+    public class WindowsBeaconProvider : IBeaconProvider
     {
-        public event EventHandler<BLEAdvertisementPacketArgs> AdvertisementPacketReceived;
-        public event EventHandler<BTError> WatcherStopped;
+        public event EventHandler<BeaconError> WatcherStopped;
+
+        public event EventHandler<BeaconPacketArgs> BeaconRegionEntered;
+        public event EventHandler<BeaconPacketArgs> BeaconRegionExited;
+        public event EventHandler<BeaconPacketArgs> BeaconReceived;
 
         private readonly BluetoothLEAdvertisementWatcher _watcher;
         private bool _running;
 
-        public WindowsBluetoothPacketProvider()
+        public WindowsBeaconProvider()
         {
             _watcher = new BluetoothLEAdvertisementWatcher
             {
@@ -29,22 +32,22 @@ namespace UniversalBeacon.Library.UWP
             get => _watcher;
         }
 
-        public BLEAdvertisementWatcherStatusCodes WatcherStatus
+        public BeaconWatcherStatusCodes WatcherStatus
         {
             get
             {
                 if (_watcher == null)
                 {
-                    return BLEAdvertisementWatcherStatusCodes.Stopped;
+                    return BeaconWatcherStatusCodes.Stopped;
                 }
 
-                return (BLEAdvertisementWatcherStatusCodes)_watcher.Status;
+                return (BeaconWatcherStatusCodes)_watcher.Status;
             }
         }
 
         private void WatcherOnReceived(BluetoothLEAdvertisementWatcher sender, BluetoothLEAdvertisementReceivedEventArgs eventArgs)
         {
-            AdvertisementPacketReceived?.Invoke(this, new BLEAdvertisementPacketArgs(eventArgs.ToUniversalBLEPacket()));
+            BeaconReceived?.Invoke(this, new BeaconPacketArgs(eventArgs.ToUniversalBLEPacket()));
         }
 
         public void Start()
@@ -63,7 +66,7 @@ namespace UniversalBeacon.Library.UWP
 
         private void WatcherOnStopped(BluetoothLEAdvertisementWatcher sender, BluetoothLEAdvertisementWatcherStoppedEventArgs args)
         {
-            WatcherStopped?.Invoke(this, new BTError((BTError.BluetoothError) args.Error));
+            WatcherStopped?.Invoke(this, new BeaconError((BeaconError.BeaconErrorType) args.Error));
         }
 
         public void Stop()

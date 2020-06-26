@@ -8,7 +8,7 @@ namespace UniversalBeacon.Library.Core.Interop
     /// Possible status codes of the Bluetooth LE Advertisment Watcher.
     /// Binary compatible to the UWP implementation.
     /// </summary>
-    public enum BLEAdvertisementWatcherStatusCodes
+    public enum BeaconWatcherStatusCodes
     {
         //
         // Summary:

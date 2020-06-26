@@ -17,15 +17,18 @@
 // See the License for the specific language governing permissions and 
 // limitations under the License. using System;
 
-namespace UniversalBeacon.Library.Core.Interop
-{
-    public abstract class BLERecord
-    {
-        public BLEPacketType PacketType { get; set; }
+using System;
 
-        protected BLERecord(BLEPacketType packetType)
+namespace UniversalBeacon.Library.Core.Interop
+{    
+
+    public class BeaconPacketArgs : EventArgs
+    {
+        public BeaconPacket Data { get; private set; }
+
+        public BeaconPacketArgs(BeaconPacket data)
         {
-            PacketType = packetType;
+            Data = data;
         }
     }
 }

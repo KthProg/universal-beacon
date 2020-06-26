@@ -17,16 +17,33 @@
 // See the License for the specific language governing permissions and 
 // limitations under the License. using System;
 
-namespace UniversalBeacon.Library.Core.Interop
-{
-    public sealed class BLEGenericRecord : BLERecord
-    {
-        public byte[] RawData { get; private set; }
+using System;
+using System.Collections.Generic;
 
-        public BLEGenericRecord(BLEPacketType packetType, byte[] data)
-            : base(packetType)
+namespace UniversalBeacon.Library.Core.Interop
+{    
+    public sealed class BeaconRegion
+    {
+        public BeaconRegion()
         {
-            RawData = data;
+
         }
+
+        public BeaconRegion(string name)
+        {
+            RegionName = name;
+        }
+
+        public BeaconRegion(BeaconRegion beaconRegion)
+        {
+            Uuid = beaconRegion.Uuid;
+            RegionName = beaconRegion.RegionName;
+            MajorVersion = beaconRegion.MajorVersion;
+            MinorVersion = beaconRegion.MinorVersion;
+        }
+        public string Uuid { get; set; }
+        public string RegionName { get; set; }
+        public ushort MajorVersion { get; set; }
+        public ushort MinorVersion { get; set; }
     }
 }

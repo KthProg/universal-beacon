@@ -1,17 +1,26 @@
 ﻿using System;
+using System.Diagnostics;
+using System.Linq;
+using System.Xml.XPath;
 using Android.Bluetooth;
 using Android.Bluetooth.LE;
+using Android.Nfc.Tech;
 using Android.Runtime;
 using UniversalBeacon.Library.Core.Interop;
+using UniversalBeacon.Library.Core.Parsing;
 
 namespace UniversalBeacon.Library
 {
     internal class BLEScanCallback : ScanCallback
     {
-        public event EventHandler<BLEAdvertisementPacketArgs> OnAdvertisementPacketReceived;
+        private readonly string LogTag = nameof(BLEScanCallback);
+
+        public event EventHandler<BeaconPacketArgs> OnAdvertisementPacketReceived;
 
         public override void OnScanFailed([GeneratedEnum] ScanFailure errorCode)
         {
+            Debug.WriteLine($"{LogTag} scan failed, error: {errorCode}");
+
             base.OnScanFailed(errorCode);
         }
 
@@ -25,58 +34,64 @@ namespace UniversalBeacon.Library
                 case BluetoothDeviceType.Unknown:
                     try
                     {
-                        var p = new BLEAdvertisementPacket
+                        byte[] scanData = result.ScanRecord.GetBytes();
+
+                        // TODO: move to beacon parser, check for other beacons not just iBeacon
+
+                        // https://github.com/inthepocket/ibeacon-scanner-android/blob/1.2.1/ibeaconscanner/src/main/java/mobi/inthepocket/android/beacons/ibeaconscanner/ScannerScanCallback.java#L73
+                        int startByte = 2;
+                        bool patternFound = false;
+                        while (startByte <= 5)
                         {
-                            // address will be in the form "D1:36:E6:9D:46:52"
-                            BluetoothAddress = result.Device.Address.ToNumericAddress(),    
-                            RawSignalStrengthInDBm = (short) result.Rssi,
-                            // TODO: probably needs adjustment
-                            Timestamp = DateTimeOffset.FromUnixTimeMilliseconds(result.TimestampNanos / 1000),
-                            // TODO: validate this
-                            AdvertisementType = (BLEAdvertisementType) result.ScanRecord.AdvertiseFlags, 
-                            Advertisement = new BLEAdvertisement
+                            if ((scanData[startByte + 2] & 0xff) == 0x02 && // identifies an iBeacon
+                                    (scanData[startByte + 3] & 0xff) == 0x15)
                             {
-                                LocalName = result.ScanRecord.DeviceName
+                                // identifies correct data length
+                                patternFound = true;
+                                break;
                             }
+                            startByte++;
+                        }
+
+                        if (!patternFound) { return; }
+
+                        Debug.WriteLine($"Packet is iBeacon at {result.Device.Address}", LogTag);
+
+                        // get the UUID from the hex result
+                        byte[] uuidBytes = new byte[16];
+                        Array.Copy(scanData, startByte + 4, uuidBytes, 0, 16);
+
+                        // get the major from hex result
+                        byte[] majorBytes = new byte[2];
+                        Array.Copy(scanData, startByte + 20, majorBytes, 0, 2);
+
+                        // get the minor from hex result
+                        byte[] minorBytes = new byte[2];
+                        Array.Copy(scanData, startByte + 22, minorBytes, 0, 2);
+
+                        var p = new BeaconPacket
+                        {
+                            Region = new BeaconRegion
+                            {
+                                Uuid = BitConverter.ToString(uuidBytes),
+                                MajorVersion = BitConverter.ToUInt16(majorBytes),
+                                MinorVersion = BitConverter.ToUInt16(minorBytes),
+                            },
+                            BluetoothAddress = result.Device.Address.ToNumericAddress(),
+                            RawSignalStrengthInDBm = (short)result.Rssi,
+                            Timestamp = DateTimeOffset.FromUnixTimeMilliseconds(result.TimestampNanos / 1000),
                         };
 
-                        if (result.ScanRecord.ServiceUuids != null)
-                        {
-                            foreach(var svc in result.ScanRecord.ServiceUuids)
-                            {
-                                var guid = new Guid(svc.Uuid.ToString());
-                                var data = result.ScanRecord.GetServiceData(svc);
-
-                                p.Advertisement.ServiceUuids.Add(guid);
-                            }
-                        }
-
-                        var recordData = result.ScanRecord.GetBytes();
-                        var rec = RecordParser.Parse(recordData);
-
-                        foreach (var curRec in rec)
-                        {
-                            if (curRec is BLEManufacturerData md)
-                            {
-                                p.Advertisement.ManufacturerData.Add(md);
-                            }
-                            if (curRec is BLEAdvertisementDataSection sd)
-                            {
-                                p.Advertisement.DataSections.Add(sd);
-                            }
-                        }
-                        OnAdvertisementPacketReceived?.Invoke(this, new BLEAdvertisementPacketArgs(p));
+                        OnAdvertisementPacketReceived?.Invoke(this, new BeaconPacketArgs(p));
                     }
                     catch (Exception)
                     {
-                        // TODO
+                        Debug.WriteLine("Failed to parse beacon", LogTag);
                     }
                     break;
                 default:
                     break;
             }
-
-            // result.Device;
         }
     }
 }

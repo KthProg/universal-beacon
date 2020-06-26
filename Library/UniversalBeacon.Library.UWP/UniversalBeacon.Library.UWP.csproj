@@ -107,7 +107,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="PacketExtensions.cs" />
-    <Compile Include="WindowsBluetoothPacketProvider.cs" />
+    <Compile Include="WindowsBeaconProvider.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <EmbeddedResource Include="Properties\UniversalBeacon.Library.UWP.rd.xml" />
   </ItemGroup>
