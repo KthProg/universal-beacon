@@ -127,47 +127,61 @@ namespace UniversalBeacon.Library
 
             SystemDebug.WriteLine("starting scan", LogTag);
 
-            _cancellationTokenSource = new CancellationTokenSource();
-            _cancellationToken = _cancellationTokenSource.Token;
-
-            _scanTask = Task.Run(async () =>
+            lock (_lock)
             {
-                while (!_cancellationToken.IsCancellationRequested)
+                // in case Start/Stop were called on different threads one after the other
+                // and stop ran first
+                if (_cancellationToken.IsCancellationRequested) { return; }
+
+                _cancellationTokenSource = new CancellationTokenSource();
+                _cancellationToken = _cancellationTokenSource.Token;
+
+                // if Start/Stop were called on different threads and start ran first the token
+                // will be canceled and this will cancel immediately anyways
+
+                _scanTask = Task.Run(async () =>
                 {
-                    var scanCallback = new BLEScanCallback();
-                    scanCallback.OnAdvertisementPacketReceived += ScanCallback_OnAdvertisementPacketReceived;
-                    _adapter.BluetoothLeScanner.StartScan(null, scanSettings, scanCallback);
-                    await Task.Delay(ScanDurationMs);
-                    _adapter.BluetoothLeScanner.StopScan(scanCallback);
-                    await Task.Delay(ScanDelayMs);
-                }
-            }, _cancellationToken);
+                    while (!_cancellationToken.IsCancellationRequested)
+                    {
+                        var scanCallback = new BLEScanCallback();
+                        scanCallback.OnAdvertisementPacketReceived += ScanCallback_OnAdvertisementPacketReceived;
+                        _adapter.BluetoothLeScanner.StartScan(null, scanSettings, scanCallback);
+                        await Task.Delay(ScanDurationMs);
+                        _adapter.BluetoothLeScanner.StopScan(scanCallback);
+                        await Task.Delay(ScanDelayMs);
+                    }
+                }, _cancellationToken);
+            }
         }
 
         public void Stop()
         {
-            _adapter.CancelDiscovery();
-
-            try
+            lock (_lock)
             {
-                _cancellationTokenSource.Cancel();
-                _cancellationTokenSource.Dispose();
-            }
-            catch (Exception)
-            {
-                SystemDebug.WriteLine("failed to cancel beacon scanning", LogTag);
-            }
+                _adapter.CancelDiscovery();
 
-            try
-            {
-                _regionExitedCancellationTokenSource.Cancel();
-                _regionExitedCancellationTokenSource.Dispose();
-            }
-            catch (Exception) {
-                SystemDebug.WriteLine("failed to cancel beacon exit task", LogTag);
-            }
+                try
+                {
+                    _cancellationTokenSource.Cancel();
+                    _cancellationTokenSource.Dispose();
+                }
+                catch (Exception)
+                {
+                    SystemDebug.WriteLine("failed to cancel beacon scanning", LogTag);
+                }
 
-            WatcherStopped?.Invoke(sender: this, e: new BeaconError(BeaconError.BeaconErrorType.Success));
+                try
+                {
+                    _regionExitedCancellationTokenSource.Cancel();
+                    _regionExitedCancellationTokenSource.Dispose();
+                }
+                catch (Exception)
+                {
+                    SystemDebug.WriteLine("failed to cancel beacon exit task", LogTag);
+                }
+
+                WatcherStopped?.Invoke(sender: this, e: new BeaconError(BeaconError.BeaconErrorType.Success));
+            }
         }
     }
 }
