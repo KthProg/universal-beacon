@@ -97,7 +97,7 @@ namespace UniversalBeacon.Library.Core.Entities
         {
             lock (_lock)
             {
-                if (!_isStarted)
+                if (_isStarted)
                 {
                     Debug.WriteLine("Attempted to start beacon manager instance twice, skipping start action.", LogTag);
                     return;
