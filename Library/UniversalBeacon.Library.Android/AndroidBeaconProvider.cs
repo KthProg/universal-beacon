@@ -131,7 +131,10 @@ namespace UniversalBeacon.Library
             {
                 // in case Start/Stop were called on different threads one after the other
                 // and stop ran first
-                if (_cancellationToken.IsCancellationRequested) { return; }
+                if (_cancellationToken.IsCancellationRequested) {
+                    SystemDebug.WriteLine("Token cancelled before scan could start", LogTag);
+                    return; 
+                }
 
                 _cancellationTokenSource = new CancellationTokenSource();
                 _cancellationToken = _cancellationTokenSource.Token;
@@ -148,6 +151,7 @@ namespace UniversalBeacon.Library
                         _adapter.BluetoothLeScanner.StartScan(null, scanSettings, scanCallback);
                         await Task.Delay(ScanDurationMs);
                         _adapter.BluetoothLeScanner.StopScan(scanCallback);
+                        scanCallback.OnAdvertisementPacketReceived -= ScanCallback_OnAdvertisementPacketReceived;
                         await Task.Delay(ScanDelayMs);
                     }
                 }, _cancellationToken);

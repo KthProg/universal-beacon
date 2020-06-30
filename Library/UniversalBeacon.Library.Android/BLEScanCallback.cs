@@ -19,7 +19,7 @@ namespace UniversalBeacon.Library
 
         public override void OnScanFailed([GeneratedEnum] ScanFailure errorCode)
         {
-            Debug.WriteLine($"{LogTag} scan failed, error: {errorCode}");
+            Debug.WriteLine($"scan failed, error: {errorCode}", LogTag);
 
             base.OnScanFailed(errorCode);
         }
@@ -53,7 +53,10 @@ namespace UniversalBeacon.Library
                             startByte++;
                         }
 
-                        if (!patternFound) { return; }
+                        if (!patternFound) {
+                            Debug.WriteLine($"Packet is not iBeacon at {result.Device.Address}", LogTag);
+                            return; 
+                        }
 
                         Debug.WriteLine($"Packet is iBeacon at {result.Device.Address}", LogTag);
 
