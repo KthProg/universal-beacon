@@ -36,56 +36,22 @@ namespace UniversalBeacon.Library
                     {
                         byte[] scanData = result.ScanRecord.GetBytes();
 
-                        // TODO: move to beacon parser, check for other beacons not just iBeacon
+                        var beacon = BeaconRawDataParser.ParseRawData(scanData);
 
-                        // https://github.com/inthepocket/ibeacon-scanner-android/blob/1.2.1/ibeaconscanner/src/main/java/mobi/inthepocket/android/beacons/ibeaconscanner/ScannerScanCallback.java#L73
-                        int startByte = 2;
-                        bool patternFound = false;
-                        while (startByte <= 5)
-                        {
-                            if ((scanData[startByte + 2] & 0xff) == 0x02 && // identifies an iBeacon
-                                    (scanData[startByte + 3] & 0xff) == 0x15)
-                            {
-                                // identifies correct data length
-                                patternFound = true;
-                                break;
-                            }
-                            startByte++;
-                        }
-
-                        if (!patternFound) {
+                        if (beacon is null || beacon.BeaconType != Core.Entities.Beacon.BeaconTypeEnum.iBeacon) {
                             Debug.WriteLine($"Packet is not iBeacon at {result.Device.Address}", LogTag);
                             return; 
                         }
 
                         Debug.WriteLine($"Packet is iBeacon at {result.Device.Address}", LogTag);
 
-                        // get the UUID from the hex result
-                        byte[] uuidBytes = new byte[16];
-                        Array.Copy(scanData, startByte + 4, uuidBytes, 0, 16);
+                        var packet = new BeaconPacket(
+                            beacon.Region, 
+                            result.Device.Address.ToNumericAddress(), 
+                            DateTimeOffset.FromUnixTimeMilliseconds(result.TimestampNanos / 1000),
+                            (short)result.Rssi);
 
-                        // get the major from hex result
-                        byte[] majorBytes = new byte[2];
-                        Array.Copy(scanData, startByte + 20, majorBytes, 0, 2);
-
-                        // get the minor from hex result
-                        byte[] minorBytes = new byte[2];
-                        Array.Copy(scanData, startByte + 22, minorBytes, 0, 2);
-
-                        var p = new BeaconPacket
-                        {
-                            Region = new BeaconRegion
-                            {
-                                Uuid = BitConverter.ToString(uuidBytes),
-                                MajorVersion = BitConverter.ToUInt16(majorBytes),
-                                MinorVersion = BitConverter.ToUInt16(minorBytes),
-                            },
-                            BluetoothAddress = result.Device.Address.ToNumericAddress(),
-                            RawSignalStrengthInDBm = (short)result.Rssi,
-                            Timestamp = DateTimeOffset.FromUnixTimeMilliseconds(result.TimestampNanos / 1000),
-                        };
-
-                        OnAdvertisementPacketReceived?.Invoke(this, new BeaconPacketArgs(p));
+                        OnAdvertisementPacketReceived?.Invoke(this, new BeaconPacketArgs(packet));
                     }
                     catch (Exception)
                     {
@@ -93,6 +59,7 @@ namespace UniversalBeacon.Library
                     }
                     break;
                 default:
+                        Debug.WriteLine($"Skipped parsing bluetooth device type {result.Device.Type}", LogTag);
                     break;
             }
         }
