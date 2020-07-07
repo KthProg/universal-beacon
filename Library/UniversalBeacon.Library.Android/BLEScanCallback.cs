@@ -18,13 +18,6 @@ namespace UniversalBeacon.Library
 
         public event EventHandler<BeaconPacketArgs> OnAdvertisementPacketReceived;
 
-        public override void OnBatchScanResults(IList<ScanResult> results)
-        {
-            base.OnBatchScanResults(results);
-
-            Debug.WriteLine($"{nameof(OnBatchScanResults)}", LogTag);
-        }
-
         public override void OnScanFailed([GeneratedEnum] ScanFailure errorCode)
         {
             Debug.WriteLine($"scan failed, error: {errorCode}", LogTag);
@@ -35,8 +28,6 @@ namespace UniversalBeacon.Library
         public override void OnScanResult([GeneratedEnum] ScanCallbackType callbackType, ScanResult result)
         {
             base.OnScanResult(callbackType, result);
-
-            Debug.WriteLine($"{nameof(OnScanResult)}", LogTag);
 
             switch (result.Device.Type)
             {
@@ -49,11 +40,8 @@ namespace UniversalBeacon.Library
                         var beacon = BeaconRawDataParser.ParseRawData(scanData);
 
                         if (beacon is null || beacon.BeaconType != Core.Entities.Beacon.BeaconTypeEnum.iBeacon) {
-                            Debug.WriteLine($"Packet is not iBeacon at {result.Device.Address}", LogTag);
                             return; 
                         }
-
-                        Debug.WriteLine($"Packet is iBeacon at {result.Device.Address}", LogTag);
 
                         var packet = new BeaconPacket(
                             beacon.Region, 
