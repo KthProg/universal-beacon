@@ -68,10 +68,11 @@ namespace UniversalBeacon.Library.Core.Entities
         /// </summary>
         private readonly Action<Action> _invokeAction;
 
-        private bool _isStarted = false;
         private readonly object _lock = new object();
 
         private readonly string LogTag = nameof(BeaconManager);
+
+        public bool IsStarted { get; private set; }
 
         /// <summary>
         /// Create new Beacon Manager based on the provider that is going to update the manager with
@@ -97,12 +98,12 @@ namespace UniversalBeacon.Library.Core.Entities
         {
             lock (_lock)
             {
-                if (_isStarted)
+                if (IsStarted)
                 {
                     Debug.WriteLine("Attempted to start beacon manager instance twice, skipping start action.", LogTag);
                     return;
                 }
-                _isStarted = true;
+                IsStarted = true;
                 _provider.Start();
             }
         }
@@ -113,13 +114,13 @@ namespace UniversalBeacon.Library.Core.Entities
         public void Stop()
         {
             lock (_lock) {
-                if (!_isStarted)
+                if (!IsStarted)
                 {
                     Debug.WriteLine("Attempted to stop beacon manager instance twice, skipping stop action.", LogTag);
                     return;
                 }
 
-                _isStarted = false;
+                IsStarted = false;
                 _provider.Stop();
             }
         }

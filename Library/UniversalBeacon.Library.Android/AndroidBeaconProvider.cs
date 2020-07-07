@@ -99,8 +99,16 @@ namespace UniversalBeacon.Library
         {
             return async () =>
             {
-                // if > 30 seconds since last beacon, send beacon exited
-                await Task.Delay(BeaconExitedTimeoutMs, _cancellationToken);
+                try
+                {
+                    // if > 30 seconds since last beacon, send beacon exited
+                    await Task.Delay(BeaconExitedTimeoutMs, _cancellationToken);
+                }
+                catch (TaskCanceledException)
+                {
+                    SystemDebug.WriteLine("Region exit delay task cancelled", LogTag);
+                    return;
+                }
                 lock (_lock)
                 {
                     if (!regionExitedCancellationToken.IsCancellationRequested)
@@ -143,12 +151,26 @@ namespace UniversalBeacon.Library
                         var scanCallback = new BLEScanCallback();
                         scanCallback.OnAdvertisementPacketReceived += ScanCallback_OnAdvertisementPacketReceived;
                         _adapter.BluetoothLeScanner.StartScan(null, scanSettings, scanCallback);
-                        await Task.Delay(ScanDurationMs, _cancellationToken);
+                        try
+                        {
+                            await Task.Delay(ScanDurationMs, _cancellationToken);
+                        }
+                        catch (TaskCanceledException)
+                        {
+                            SystemDebug.WriteLine("Scan duration delay cancelled", LogTag);
+                        }
                         SystemDebug.WriteLine("scanning for beacons completed...", LogTag);
                         _adapter.BluetoothLeScanner.StopScan(scanCallback);
                         scanCallback.OnAdvertisementPacketReceived -= ScanCallback_OnAdvertisementPacketReceived;
                         SystemDebug.WriteLine("scanning for beacons paused...", LogTag);
-                        await Task.Delay(ScanDelayMs, _cancellationToken);
+                        try
+                        {
+                            await Task.Delay(ScanDelayMs, _cancellationToken);
+                        }
+                        catch (TaskCanceledException)
+                        {
+                            SystemDebug.WriteLine("Scan delay cancelled", LogTag);
+                        }
                     }
                 }, _cancellationToken);
             }
