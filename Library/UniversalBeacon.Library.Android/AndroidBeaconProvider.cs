@@ -129,13 +129,6 @@ namespace UniversalBeacon.Library
 
             lock (_lock)
             {
-                // in case Start/Stop were called on different threads one after the other
-                // and stop ran first
-                if (_cancellationToken.IsCancellationRequested) {
-                    SystemDebug.WriteLine("Token cancelled before scan could start", LogTag);
-                    return; 
-                }
-
                 _cancellationTokenSource = new CancellationTokenSource();
                 _cancellationToken = _cancellationTokenSource.Token;
 
@@ -146,13 +139,16 @@ namespace UniversalBeacon.Library
                 {
                     while (!_cancellationToken.IsCancellationRequested)
                     {
+                        SystemDebug.WriteLine("scanning for beacons...", LogTag);
                         var scanCallback = new BLEScanCallback();
                         scanCallback.OnAdvertisementPacketReceived += ScanCallback_OnAdvertisementPacketReceived;
                         _adapter.BluetoothLeScanner.StartScan(null, scanSettings, scanCallback);
-                        await Task.Delay(ScanDurationMs);
+                        await Task.Delay(ScanDurationMs, _cancellationToken);
+                        SystemDebug.WriteLine("scanning for beacons completed...", LogTag);
                         _adapter.BluetoothLeScanner.StopScan(scanCallback);
                         scanCallback.OnAdvertisementPacketReceived -= ScanCallback_OnAdvertisementPacketReceived;
-                        await Task.Delay(ScanDelayMs);
+                        SystemDebug.WriteLine("scanning for beacons paused...", LogTag);
+                        await Task.Delay(ScanDelayMs, _cancellationToken);
                     }
                 }, _cancellationToken);
             }
@@ -162,12 +158,16 @@ namespace UniversalBeacon.Library
         {
             lock (_lock)
             {
-                _adapter.CancelDiscovery();
+                SystemDebug.WriteLine("cancelling adapter discovery", LogTag);
+
+                _adapter?.CancelDiscovery();
 
                 try
                 {
-                    _cancellationTokenSource.Cancel();
-                    _cancellationTokenSource.Dispose();
+                    SystemDebug.WriteLine("cancelling beaconing operations", LogTag);
+
+                    _cancellationTokenSource?.Cancel();
+                    _cancellationTokenSource?.Dispose();
                 }
                 catch (Exception)
                 {
@@ -176,8 +176,10 @@ namespace UniversalBeacon.Library
 
                 try
                 {
-                    _regionExitedCancellationTokenSource.Cancel();
-                    _regionExitedCancellationTokenSource.Dispose();
+                    SystemDebug.WriteLine("cancelling beacon exit task", LogTag);
+
+                    _regionExitedCancellationTokenSource?.Cancel();
+                    _regionExitedCancellationTokenSource?.Dispose();
                 }
                 catch (Exception)
                 {
