@@ -50,7 +50,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\UniversalBeacon.Library.Core\UniversalBeacon.Library.Core.csproj">
-      <Project>{83be2e56-2400-40a2-8d88-b5dae98213e1}</Project>
+      <Project>{89A5A702-C5BE-459E-B3A5-7CEC06ACACC5}</Project>
       <Name>UniversalBeacon.Library.Core</Name>
     </ProjectReference>
   </ItemGroup>
