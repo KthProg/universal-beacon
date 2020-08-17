@@ -43,8 +43,10 @@ namespace UniversalBeacon.Library
         private const int ScanDelayMs = 5000;
         private const int ScanDurationMs = 5000;
 
+#if DEBUG
         private readonly object _bluetoothDevicesListLock = new object();
         private readonly List<ulong> _bluetoothDevicesWeHaveReceivedBeaconsFrom = new List<ulong>();
+#endif
 
         public AndroidBeaconProvider(Context context, BeaconRegion beaconRegion)
         {
@@ -57,6 +59,7 @@ namespace UniversalBeacon.Library
 
         private void ScanCallback_OnAdvertisementPacketReceived(object sender, BeaconPacketArgs e)
         {
+#if DEBUG
             lock (_bluetoothDevicesListLock)
             {
                 if (!_bluetoothDevicesWeHaveReceivedBeaconsFrom.Contains(e.Data.BluetoothAddress))
@@ -65,6 +68,7 @@ namespace UniversalBeacon.Library
                     _bluetoothDevicesWeHaveReceivedBeaconsFrom.Add(e.Data.BluetoothAddress);
                 }
             }
+#endif
 
             if (e.Data.Region.Uuid.Replace("-", String.Empty).ToLower() != _beaconRegion.Uuid.Replace("-", String.Empty).ToLower())
             {
@@ -219,6 +223,13 @@ namespace UniversalBeacon.Library
                 }
 
                 WatcherStopped?.Invoke(sender: this, e: new BeaconError(BeaconError.BeaconErrorType.Success));
+
+#if DEBUG
+                lock (_bluetoothDevicesListLock)
+                {
+                    _bluetoothDevicesWeHaveReceivedBeaconsFrom?.Clear();
+                }
+#endif
             }
         }
     }
