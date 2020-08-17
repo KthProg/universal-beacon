@@ -43,6 +43,11 @@ namespace UniversalBeacon.Library
         private const int ScanDelayMs = 5000;
         private const int ScanDurationMs = 5000;
 
+#if DEBUG
+        private readonly object _bluetoothDevicesListLock = new object();
+        private readonly List<ulong> _bluetoothDevicesWeHaveReceivedBeaconsFrom = new List<ulong>();
+#endif
+
         public AndroidBeaconProvider(Context context, BeaconRegion beaconRegion)
         {
             SystemDebug.WriteLine(LogTag, LogTag);
@@ -54,7 +59,16 @@ namespace UniversalBeacon.Library
 
         private void ScanCallback_OnAdvertisementPacketReceived(object sender, BeaconPacketArgs e)
         {
-            SystemDebug.WriteLine($"Beacon received: {e.Data.BluetoothAddress:X} {e.Data.Region.Uuid}", LogTag);
+#if DEBUG
+            lock (_bluetoothDevicesListLock)
+            {
+                if (!_bluetoothDevicesWeHaveReceivedBeaconsFrom.Contains(e.Data.BluetoothAddress))
+                {
+                    SystemDebug.WriteLine($"Beacon received: {e.Data.BluetoothAddress:X} {e.Data.Region.Uuid}", LogTag);
+                    _bluetoothDevicesWeHaveReceivedBeaconsFrom.Add(e.Data.BluetoothAddress);
+                }
+            }
+#endif
 
             if (e.Data.Region.Uuid.Replace("-", String.Empty).ToLower() != _beaconRegion.Uuid.Replace("-", String.Empty).ToLower())
             {
@@ -147,7 +161,7 @@ namespace UniversalBeacon.Library
                 {
                     while (!_cancellationToken.IsCancellationRequested)
                     {
-                        SystemDebug.WriteLine("scanning for beacons...", LogTag);
+                        //SystemDebug.WriteLine("scanning for beacons...", LogTag);
                         var scanCallback = new BLEScanCallback();
                         scanCallback.OnAdvertisementPacketReceived += ScanCallback_OnAdvertisementPacketReceived;
                         _adapter.BluetoothLeScanner.StartScan(null, scanSettings, scanCallback);
@@ -159,10 +173,10 @@ namespace UniversalBeacon.Library
                         {
                             SystemDebug.WriteLine("Scan duration delay cancelled", LogTag);
                         }
-                        SystemDebug.WriteLine("scanning for beacons completed...", LogTag);
+                        //SystemDebug.WriteLine("scanning for beacons completed...", LogTag);
                         _adapter.BluetoothLeScanner.StopScan(scanCallback);
                         scanCallback.OnAdvertisementPacketReceived -= ScanCallback_OnAdvertisementPacketReceived;
-                        SystemDebug.WriteLine("scanning for beacons paused...", LogTag);
+                        //SystemDebug.WriteLine("scanning for beacons paused...", LogTag);
                         try
                         {
                             await Task.Delay(ScanDelayMs, _cancellationToken);
@@ -209,6 +223,13 @@ namespace UniversalBeacon.Library
                 }
 
                 WatcherStopped?.Invoke(sender: this, e: new BeaconError(BeaconError.BeaconErrorType.Success));
+
+#if DEBUG
+                lock (_bluetoothDevicesListLock)
+                {
+                    _bluetoothDevicesWeHaveReceivedBeaconsFrom?.Clear();
+                }
+#endif
             }
         }
     }
