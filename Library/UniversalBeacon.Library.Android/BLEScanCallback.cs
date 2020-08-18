@@ -57,7 +57,7 @@ namespace UniversalBeacon.Library
                     }
                     break;
                 default:
-                        Debug.WriteLine($"Skipped parsing bluetooth device type {result.Device.Type}", LogTag);
+                        //Debug.WriteLine($"Skipped parsing bluetooth device type {result.Device.Type}", LogTag);
                     break;
             }
         }
