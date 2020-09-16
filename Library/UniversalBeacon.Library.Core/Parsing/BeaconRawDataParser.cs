@@ -9,11 +9,11 @@ namespace UniversalBeacon.Library.Core.Parsing
 {
     public static class BeaconRawDataParser
     {
-        public static Beacon ParseRawData(byte[] rawData)
+        public static Beacon ParseRawData(byte[] rawData, bool includesHeaderBytes = true)
         {
 
             // https://github.com/inthepocket/ibeacon-scanner-android/blob/1.2.1/ibeaconscanner/src/main/java/mobi/inthepocket/android/beacons/ibeaconscanner/ScannerScanCallback.java#L73
-            int startByte = 2;
+            int startByte = includesHeaderBytes ? 2 : 0;
             bool wasIBeaconPatternFound = false;
             while (startByte <= 5)
             {
