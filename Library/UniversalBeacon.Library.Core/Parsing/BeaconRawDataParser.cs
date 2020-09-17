@@ -44,11 +44,19 @@ namespace UniversalBeacon.Library.Core.Parsing
             byte[] minorBytes = new byte[2];
             Array.Copy(rawData, startByte + 22, minorBytes, 0, 2);
 
+            StringBuilder guidBytesHex = new StringBuilder();
+
+            // have to do this to prevent a bunch of dashes getting added in
+            foreach (byte byt in uuidBytes)
+            {
+                guidBytesHex.Append(byt.ToString("X2"));
+            }
+
             return new Beacon(Beacon.BeaconTypeEnum.iBeacon)
             {
                 Region = new BeaconRegion
                 {
-                    Uuid = new Guid(uuidBytes).ToString(),
+                    Uuid = guidBytesHex.ToString(),
                     MajorVersion = BitConverter.ToUInt16(majorBytes, 0),
                     MinorVersion = BitConverter.ToUInt16(minorBytes, 0)
                 }
