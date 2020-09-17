@@ -48,7 +48,7 @@ namespace UniversalBeacon.Library.Core.Parsing
             {
                 Region = new BeaconRegion
                 {
-                    Uuid = BitConverter.ToString(uuidBytes),
+                    Uuid = new Guid(uuidBytes).ToString(),
                     MajorVersion = BitConverter.ToUInt16(majorBytes, 0),
                     MinorVersion = BitConverter.ToUInt16(minorBytes, 0)
                 }
