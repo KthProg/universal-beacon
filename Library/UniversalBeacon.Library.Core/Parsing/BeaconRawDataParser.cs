@@ -9,11 +9,11 @@ namespace UniversalBeacon.Library.Core.Parsing
 {
     public static class BeaconRawDataParser
     {
-        public static Beacon ParseRawData(byte[] rawData)
+        public static Beacon ParseRawData(byte[] rawData, bool includesHeaderBytes = true)
         {
 
             // https://github.com/inthepocket/ibeacon-scanner-android/blob/1.2.1/ibeaconscanner/src/main/java/mobi/inthepocket/android/beacons/ibeaconscanner/ScannerScanCallback.java#L73
-            int startByte = 2;
+            int startByte = includesHeaderBytes ? 2 : 0;
             bool wasIBeaconPatternFound = false;
             while (startByte <= 5)
             {
@@ -44,11 +44,19 @@ namespace UniversalBeacon.Library.Core.Parsing
             byte[] minorBytes = new byte[2];
             Array.Copy(rawData, startByte + 22, minorBytes, 0, 2);
 
+            StringBuilder guidBytesHex = new StringBuilder();
+
+            // have to do this to prevent a bunch of dashes getting added in
+            foreach (byte byt in uuidBytes)
+            {
+                guidBytesHex.Append(byt.ToString("X2"));
+            }
+
             return new Beacon(Beacon.BeaconTypeEnum.iBeacon)
             {
                 Region = new BeaconRegion
                 {
-                    Uuid = BitConverter.ToString(uuidBytes),
+                    Uuid = guidBytesHex.ToString(),
                     MajorVersion = BitConverter.ToUInt16(majorBytes, 0),
                     MinorVersion = BitConverter.ToUInt16(minorBytes, 0)
                 }
